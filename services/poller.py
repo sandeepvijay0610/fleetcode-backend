@@ -15,6 +15,17 @@ query recentAcSubmissions($username: String!, $limit: Int!) {
 }
 """
 
+QUESTION_QUERY = """
+query questionData($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    difficulty
+    topicTags {
+      name
+    }
+  }
+}
+"""
+
 # Track when the poller started – only count submissions after this time
 POLLER_START_TIME = datetime.now(timezone.utc).timestamp()
 
@@ -62,6 +73,25 @@ async def fetch_user_submissions(client, user, session):
                     solvedAt=solved_time.replace(tzinfo=None),
                     xpAwarded=10,
                 )
+                
+                # Fetch topics for the new activity
+                try:
+                    q_res = await client.post(
+                        "https://leetcode.com/graphql",
+                        json={
+                            "query": QUESTION_QUERY,
+                            "variables": {"titleSlug": sub["titleSlug"]}
+                        },
+                        headers={"User-Agent": "Mozilla/5.0"}
+                    )
+                    q_data = q_res.json()
+                    question = q_data.get("data", {}).get("question", {})
+                    if question:
+                        new_activity.topics = [t["name"] for t in question.get("topicTags", [])]
+                        new_activity.difficulty = question.get("difficulty", "Unknown")
+                except Exception as e:
+                    print(f"[RADAR] Error fetching topics for {sub['titleSlug']}: {e}")
+
                 session.add(new_activity)
 
                 # Award XP to squad
