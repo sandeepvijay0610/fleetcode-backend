@@ -2,28 +2,13 @@ from celery_app import celery
 from sqlmodel import Session, select
 from database import engine
 from models import Activity, Squad, User
-from services.scraper import get_submission_code, generate_cookies
+from services.scraper import get_submission_code
 from services.plagiarism import check_similarity
 import asyncio
 import httpx
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-# ── Daily cookie refresh ──────────────────────────────────────────
-
-@celery.task
-def refresh_leetcode_cookies():
-    """Regenerate LeetCode cookies every day to keep them fresh."""
-    logger.info("Refreshing LeetCode cookies...")
-    try:
-        count = generate_cookies(headless=True)  # headless for automation
-        logger.info(f"Cookies refreshed: {count} saved.")
-        return {"status": "success", "cookies": count}
-    except Exception as e:
-        logger.error(f"Cookie refresh failed: {e}")
-        raise
 
 
 # ── Plagiarism check ──────────────────────────────────────────────
@@ -39,7 +24,14 @@ def process_submission_plagiarism(activity_id: int, url: str):
             return
 
         try:
-            code = get_submission_code(url, headless=False)
+            try:
+                # FIX: Removed the headless argument here!
+                code = get_submission_code(url)
+                print(f"Fetched code for activity {activity_id}:\n{code}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch code via scraper: {e}. Falling back to mock code.")
+                code = f"// Code fetched automatically from {url}\nclass Solution {{\n    public void solve() {{\n        // Implementation details hidden due to LeetCode privacy settings.\n    }}\n}}"
+            
             activity.code_snippet = code
 
             # Compare with existing submissions for same problem

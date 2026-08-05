@@ -7,13 +7,25 @@ services:
     volumes:
       - redis_data:/data
 
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fleetcode_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
   web:
     build: .
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/fleetcode_db}
       - REDIS_URL=redis://redis:6379/0
       - LEETCODE_EMAIL=${LEETCODE_EMAIL}
       - LEETCODE_PASSWORD=${LEETCODE_PASSWORD}
@@ -21,15 +33,16 @@ services:
       - SELENIUM_HEADLESS=true   # <-- force headless in container
     depends_on:
       - redis
+      - db
     volumes:
-      - cookies_data:/app   # persist cookies.pkl across restarts
+      - .:/app
     restart: unless-stopped
 
   worker:
     build: .
     command: celery -A celery_app worker --loglevel=info --pool=solo
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/fleetcode_db}
       - REDIS_URL=redis://redis:6379/0
       - LEETCODE_EMAIL=${LEETCODE_EMAIL}
       - LEETCODE_PASSWORD=${LEETCODE_PASSWORD}
@@ -37,15 +50,16 @@ services:
       - SELENIUM_HEADLESS=true
     depends_on:
       - redis
+      - db
     volumes:
-      - cookies_data:/app
+      - .:/app
     restart: unless-stopped
 
   beat:
     build: .
     command: celery -A celery_app beat --loglevel=info
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/fleetcode_db}
       - REDIS_URL=redis://redis:6379/0
       - LEETCODE_EMAIL=${LEETCODE_EMAIL}
       - LEETCODE_PASSWORD=${LEETCODE_PASSWORD}
@@ -53,6 +67,7 @@ services:
       - SELENIUM_HEADLESS=true
     depends_on:
       - redis
+      - db
     volumes:
       - cookies_data:/app
     restart: unless-stopped
@@ -60,3 +75,4 @@ services:
 volumes:
   redis_data:
   cookies_data:
+  db_data:

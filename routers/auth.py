@@ -90,8 +90,8 @@ async def verify_leetcode(username: str, db: Session = Depends(get_session)):
         return {"verified": True}
 
     query = """
-    query recentAcSubmissions($username: String!, $limit: Int!) {
-        recentAcSubmissionList(username: $username, limit: $limit) {
+    query recentSubmissions($username: String!, $limit: Int!) {
+        recentSubmissionList(username: $username, limit: $limit) {
             titleSlug
             timestamp
         }
@@ -103,7 +103,7 @@ async def verify_leetcode(username: str, db: Session = Depends(get_session)):
                 "https://leetcode.com/graphql",
                 json={
                     "query": query,
-                    "variables": {"username": user.leetCodeUsername, "limit": 1},
+                    "variables": {"username": user.leetCodeUsername, "limit": 20},
                 },
                 headers={"User-Agent": "Mozilla/5.0"},
             )
@@ -112,7 +112,7 @@ async def verify_leetcode(username: str, db: Session = Depends(get_session)):
             print(f"[Radar] Error: {e}")
             return {"verified": False}
 
-    submissions = data.get("data", {}).get("recentAcSubmissionList")
+    submissions = data.get("data", {}).get("recentSubmissionList")
     if not submissions:
         return {"verified": False}
 
