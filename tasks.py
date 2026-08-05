@@ -44,12 +44,17 @@ def process_submission_plagiarism(activity_id: int, url: str):
             ).all()
 
             is_plag = False
-            for old_act in existing:
-                sim = check_similarity(code, old_act.code_snippet)
-                if sim > 0.85:
-                    is_plag = True
-                    logger.warning(f"Plagiarism detected! {sim*100}% similar to activity {old_act.id}")
-                    break
+            is_mock = "Implementation details hidden due to LeetCode privacy settings." in code
+            
+            if not is_mock:
+                for old_act in existing:
+                    if old_act.code_snippet and "Implementation details hidden due to LeetCode privacy settings." in old_act.code_snippet:
+                        continue
+                    sim = check_similarity(code, old_act.code_snippet)
+                    if sim > 0.85:
+                        is_plag = True
+                        logger.warning(f"Plagiarism detected! {sim*100}% similar to activity {old_act.id}")
+                        break
 
             if is_plag:
                 activity.is_plagiarized = True
