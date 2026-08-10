@@ -18,7 +18,7 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             # Navigate to where your code lives on the VM (Update this if your folder name is different)
-            cd ~/FleetCode
+            cd ~/fleetcode-backend
             
             # Pull the fresh code you just pushed
             git pull origin main
